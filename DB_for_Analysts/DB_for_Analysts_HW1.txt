@@ -1,0 +1,163 @@
+ДЗ к Урок 1 (итоговые данные можно предоставить в документе ворд или pdf, сильно расписывать не надо, просто выводы по пунктам)
+1. Практическое задание по клиентской аналитике
+Действия:
+1. Залить в свою БД данные по продажам (часть таблицы Orders в csv, исходник здесь https://drive.google.com/drive/folders/1C3HqIJcABblKM2tz8vPGiXTFT7MisrML?usp=sharing , интересует orders_20190822 )
+
+drop database if exists db_a;
+create database db_a;
+use db_a;
+CREATE TABLE orders_20190822 (
+	id INT NOT NULL AUTO_INCREMENT,    
+    id_o INT NULL,
+    user_id INT NULL,
+    price DECIMAL(10,3) NULL,
+    o_date DATE NULL,
+    PRIMARY KEY (id)
+);
+
+LOAD DATA INFILE "D:\orders_20190822.csv"
+INTO TABLE orders_20190822
+FIELDS TERMINATED BY ';' 
+ENCLOSED BY '"'
+LINES TERMINATED BY '\n'
+IGNORE 1 ROWS
+(id_o, user_id, @price, @o_date) 
+SET 
+o_date = STR_TO_DATE(@o_date, '%d.%m.%Y'), 
+price = CAST(@price AS DECIMAL(12,3))
+;
+
+
+2. Проанализировать, какой период данных выгружен
+select count(distinct o_date) from orders_20190822
+---
+"count(distinct o_date)"
+731
+
+Загружены данные за 731 день 
+2016 год 366 дней
+2017 год 365 дней
+
+
+3. 
+A) Посчитать  кол-во строк, 
+select count(*) from orders_20190822 
+---
+count(*)
+2002804
+
+
+B) Посчитать  кол-во заказов 
+select count(id_o) from orders_20190822 where price is not null
+---
+count(id_o)
+2002804
+
+C) Посчитать  кол-во уникальных пользователей, кот совершали заказы.
+select count(distinct user_id) from orders_20190822 where price is not null
+---
+"count(distinct user_id)"
+1015119
+
+
+4. По годам посчитать средний чек, 
+select 
+year(o_date) as year, 
+count(*) as orders_count, 
+sum(price) as total_sum,
+avg(price) as avarage_cheque
+from orders_20190822 GROUP BY YEAR(o_date)
+---
+year,orders_count,total_sum,avarage_cheque
+2016,861346,1804730575.000,2095.2446230
+2017,1141458,2737176033.000,2397.9647372
+
+
+среднее кол-во заказов на пользователя 
+Select 
+YEAR(o_date) as year_, 
+count(id_o) as total_orders,
+count(distinct user_id) as unique_users,
+count(id_o)/count(distinct user_id) as avagare_order 
+from orders_20190822  where price is not null 
+group by year(o_date);
+
+---
+year_,total_orders,unique_users,avagare_order
+2016,861346,445092,1.9352
+2017,1141458,654894,1.7430
+
+
+сделать вывод , как изменялись это показатели Год от года.
+за 2017 увеличелись кол-во заказов и кол-во пользователей, однако среднее кол-во заказов на уникального уменьшилось
+
+
+5. Найти кол-во пользователей, кот покупали в одном году и перестали покупать в следующем.
+Select 
+count(user_id)
+from orders_20190822  
+	where price is not null 
+    and YEAR(o_date) = 2016 and user_id not in (Select user_id from orders_20190822 where price is not null and YEAR(o_date) = 2017)
+---
+count(user_id)
+487298
+
+
+
+6. Найти ID самого активного по кол-ву покупок пользователя. 
+select 
+	user_id,
+	count(id_o) as qty
+from orders_20190822 
+group by user_id
+order by qty desc limit 1
+---
+user_id,qty
+765861,3183
+
+
+
+7. Найти коэффициенты сезонности по месяцам.
+
+Select 
+count(id_o) as ttl_orders,
+sum(price),
+sum(price)/(select sum(price)/12 from orders_20190822  	where price is not null and YEAR(o_date) = 2016) as koef_month,
+year(o_date),
+MONTHNAME(o_date)
+from orders_20190822  
+	where price is not null and YEAR(o_date) = 2016
+    group by MONTH(o_date)
+---
+ttl_orders,sum(price),koef_month,year(o_date),MONTHNAME(o_date)
+46559,96800035.000,0.6436420,2016,January
+45076,95424814.000,0.6344979,2016,February
+59536,115252660.000,0.7663371,2016,March
+67734,139303950.000,0.9262587,2016,April
+54686,108568402.000,0.7218921,2016,May
+59980,116656689.000,0.7756727,2016,June
+57230,113172323.000,0.7525045,2016,July
+67180,139540034.000,0.9278285,2016,August
+70146,152893399.000,1.0166176,2016,September
+89763,211601928.000,1.4069818,2016,October
+115287,256610969.000,1.7062556,2016,November
+128169,258905372.000,1.7215115,2016,December
+---
+ttl_orders,sum(price),koef_month,year(o_date),MONTHNAME(o_date)
+76145,177164502.000,0.7767034,2017,January
+70652,161590885.000,0.7084274,2017,February
+90348,214754868.000,0.9415026,2017,March
+85308,197627060.000,0.8664129,2017,April
+91949,217038021.000,0.9515121,2017,May
+77343,184922423.000,0.8107148,2017,June
+77002,187190818.000,0.8206596,2017,July
+84375,205816698.000,0.9023170,2017,August
+80976,211996743.000,0.9294108,2017,September
+106973,280164700.000,1.2282646,2017,October
+131882,326634392.000,1.4319915,2017,November
+168505,372274923.000,1.6320832,2017,December
+
+
+
+
+
