@@ -1,9 +1,15 @@
 from pprint import pprint
 import requests
 from lxml import html
+from pymongo import MongoClient
+
 
 header = {'User-Agent':'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/84.0.4147.105 Safari/537.36'}
 news = []
+client = MongoClient('127.0.0.1',27017)
+db = client['news']
+jj = db.news
+
 
 #****LENTARU****
 link = 'https://lenta.ru'
@@ -45,10 +51,10 @@ for item in items:
     news_link = item.xpath(".//a[@class='news-card__link']/@href")
     news_date = item.xpath(".//span[@class='mg-card-source__time']/text()")
 
-    elements['title'] = news_title
-    elements['date'] = news_date
-    elements['link'] = news_link
-    elements['origin'] = news_origin
+    elements['title'] = news_title[0]
+    elements['date'] = news_date[0]
+    elements['link'] = news_link[0]
+    elements['origin'] = news_origin[0]
 
     news.append(elements)
 
@@ -67,12 +73,13 @@ for item in items:
     news_link = item
     news_date = news_dom.xpath("//span[@class='note__text breadcrumbs__text js-ago']/@datetime")
 
-    elements['title'] = news_title
-    elements['date'] = news_date
-    elements['link'] = news_link
-    elements['origin'] = news_origin
+    elements['title'] = news_title[0]
+    elements['date'] = news_date[0]
+    elements['link'] = news_link[0]
+    elements['origin'] = news_origin[0]
 
     news.append(elements)
 
-
-pprint(news)
+jj.insert_many(news)
+ttl_news = len(news)
+print('Сохранено в базу', ttl_news, 'новостей')
